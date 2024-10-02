@@ -186,7 +186,9 @@ i915_ttm_placement_from_obj(const struct drm_i915_gem_object *obj,
 	i915_ttm_place_from_region(num_allowed ? obj->mm.placements[0] :
 				   obj->mm.region, &places[0], obj->bo_offset,
 				   obj->base.size, flags);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,11,0) // 264b5b5 drm/i915: Allow evicting to use the requested placement
 	places[0].flags |= TTM_PL_FLAG_DESIRED;
+#endif
 #endif
 
 	/* Cache this on object? */
@@ -504,8 +506,11 @@ static int i915_ttm_shrink(struct drm_i915_gem_object *obj, unsigned int flags)
 	};
 	struct ttm_placement place = {};
 	int ret;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,4,0)
 	if (!bo->ttm || bo->resource->mem_type != TTM_PL_SYSTEM)
+#else
+	if (!bo->ttm || i915_ttm_cpu_maps_iomem(bo->resource))
+#endif
 		return 0;
 
 	GEM_BUG_ON(!i915_tt->is_shmem);
@@ -544,7 +549,11 @@ static void i915_ttm_delete_mem_notify(struct ttm_buffer_object *bo)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,4,0)
 	if (bo->resource && !i915_ttm_is_ghost_object(bo)) {
+#else
+	if ((bo->resource || bo->ttm) && !i915_ttm_is_ghost_object(bo)) { // 58c7ee0 drm/i915/ttm: audit remaining bo->resource
+#endif
 		__i915_gem_object_pages_fini(obj);
 		i915_ttm_free_cached_io_rsgt(obj);
 	}
@@ -816,10 +825,16 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 		.interruptible = true,
 		.no_wait_gpu = false,
 	};
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,11,0)
 	int real_num_busy;
+#else
+	struct ttm_placement initial_placement;
+	struct ttm_place initial_place;
+#endif
 	int ret;
 
 	/* First try only the requested placement. No eviction. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,11,0)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
 	real_num_busy = fetch_and_zero(&placement->num_busy_placement);
 #else
@@ -827,6 +842,13 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 	placement->num_placement = 1;
 #endif
 	ret = ttm_bo_validate(bo, placement, &ctx);
+#else
+	initial_placement.num_placement = 1;
+	memcpy(&initial_place, placement->placement, sizeof(struct ttm_place));
+	initial_place.flags |= TTM_PL_FLAG_DESIRED;
+	initial_placement.placement = &initial_place;
+	ret = ttm_bo_validate(bo, &initial_placement, &ctx);
+#endif
 	if (ret) {
 		ret = i915_ttm_err_to_gem(ret);
 		/*
@@ -843,7 +865,7 @@ static int __i915_ttm_get_pages(struct drm_i915_gem_object *obj,
 		 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
 		placement->num_busy_placement = real_num_busy;
-#else
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(6,11,0)
 		placement->num_placement = real_num_busy;
 #endif
 		ret = ttm_bo_validate(bo, placement, &ctx);
@@ -892,8 +914,8 @@ static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
 	i915_ttm_placement_from_obj(obj, &requested, busy, &placement);
 #else
-        struct ttm_place places[I915_TTM_MAX_PLACEMENTS + 1];
-        i915_ttm_placement_from_obj(obj, places, &placement);
+	struct ttm_place places[I915_TTM_MAX_PLACEMENTS + 1];
+	i915_ttm_placement_from_obj(obj, places, &placement);
 #endif
 
 	return __i915_ttm_get_pages(obj, &placement);

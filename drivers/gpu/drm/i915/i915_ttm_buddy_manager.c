@@ -180,7 +180,7 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 
 err_free_blocks:
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6,10,0)
-	drm_buddy_free_list(mm, &bman_res->blocks,0);
+	drm_buddy_free_list(mm, &bman_res->blocks, 0);
 #else
 	drm_buddy_free_list(mm, &bman_res->blocks);
 #endif
