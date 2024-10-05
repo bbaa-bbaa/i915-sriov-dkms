@@ -22,6 +22,7 @@
  * IN THE SOFTWARE.
  *
  */
+#include <linux/version.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -179,10 +180,15 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		    min_bpp, max_bpp);
 
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+		struct intel_link_m_n remote_m_n;
+#else
+		int remote_tu;
+#endif
 		int local_bw_overhead;
 		int remote_bw_overhead;
 		int link_bpp_x16;
-		int remote_tu;
+		
 
 		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
 
@@ -202,6 +208,11 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 					 local_bw_overhead,
 					 link_bpp_x16,
 					 &crtc_state->dp_m_n);
+		
+		intel_dp_mst_compute_m_n(crtc_state, connector,
+					 remote_bw_overhead,
+					 link_bpp_x16,
+					 &remote_m_n);
 
 		/*
 		 * The TU size programmed to the HW determines which slots in
@@ -217,6 +228,11 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		 * crtc_state->dp_m_n.tu), provided that the driver doesn't
 		 * enable SSC on the corresponding link.
 		 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+		drm_WARN_ON(&i915->drm, remote_m_n.tu < crtc_state->dp_m_n.tu);
+		crtc_state->dp_m_n.tu = remote_m_n.tu;
+		crtc_state->pbn = remote_m_n.tu * mst_state->pbn_div;
+#else
 		crtc_state->pbn = intel_dp_mst_calc_pbn(adjusted_mode->crtc_clock,
 							link_bpp_x16,
 							remote_bw_overhead);
@@ -224,8 +240,8 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		remote_tu = DIV_ROUND_UP(dfixed_const(crtc_state->pbn), mst_state->pbn_div.full);
 
 		drm_WARN_ON(&i915->drm, remote_tu < crtc_state->dp_m_n.tu);
-		crtc_state->dp_m_n.tu = remote_tu;
-
+		crtc_state->dp_m_n.tu = remote_tu;	
+#endif
 		slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
 						      connector->port,
 						      crtc_state->pbn);

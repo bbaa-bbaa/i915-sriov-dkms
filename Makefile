@@ -402,7 +402,8 @@ backport += \
 	backport/drivers/gpu/drm/drm_property.o \
 	backport/drivers/gpu/drm/drm_edid.o \
 	backport/drivers/gpu/drm/display/drm_dp_helper.o \
-	backport/drivers/gpu/drm/display/drm_dp_cec.o
+	backport/drivers/gpu/drm/display/drm_dp_cec.o \
+	backport/drivers/gpu/drm/display/drm_dp_mst_topology.o
 
 i915-y := $(backport) \
 				$(i915-y)

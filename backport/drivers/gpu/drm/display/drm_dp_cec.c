@@ -16,6 +16,15 @@
 #include <drm/drm_device.h>
 #include <drm/drm_edid.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,7,0)
+// https://github.com/gregkh/linux/commit/113cdddcded6d597b64d824a59d0186db150113a
+/*
+ * A new EDID is set. If there is no CEC adapter, then create one. If
+ * there was a CEC adapter, then check if the CEC adapter properties
+ * were unchanged and just update the CEC physical address. Otherwise
+ * unregister the old CEC adapter and create a new one.
+ */
+
 static bool drm_dp_cec_cap(struct drm_dp_aux *aux, u8 *cec_cap)
 {
 	u8 cap = 0;
@@ -117,14 +126,6 @@ static void drm_dp_cec_adap_status(struct cec_adapter *adap,
 		   id->sw_major_rev, id->sw_minor_rev);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,7,0)
-// https://github.com/gregkh/linux/commit/113cdddcded6d597b64d824a59d0186db150113a
-/*
- * A new EDID is set. If there is no CEC adapter, then create one. If
- * there was a CEC adapter, then check if the CEC adapter properties
- * were unchanged and just update the CEC physical address. Otherwise
- * unregister the old CEC adapter and create a new one.
- */
 static const struct cec_adap_ops drm_dp_cec_adap_ops = {
 	.adap_enable = drm_dp_cec_adap_enable,
 	.adap_log_addr = drm_dp_cec_adap_log_addr,

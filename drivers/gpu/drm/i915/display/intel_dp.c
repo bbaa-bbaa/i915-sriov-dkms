@@ -32,6 +32,7 @@
 #include <linux/string_helpers.h>
 #include <linux/timekeeping.h>
 #include <linux/types.h>
+#include <linux/version.h>
 
 #include <asm/byteorder.h>
 
@@ -5589,6 +5590,9 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_connector *connector = intel_dp->attached_connector;
 	const struct drm_edid *drm_edid;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
+	const struct edid *edid;
+#endif
 	bool vrr_capable;
 
 	intel_dp_unset_edid(intel_dp);
@@ -5606,8 +5610,14 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 	intel_dp_update_dfp(intel_dp, drm_edid);
 	intel_dp_update_420(intel_dp);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
+	/* FIXME: Get rid of drm_edid_raw() */
+	edid = drm_edid_raw(drm_edid);
+	drm_dp_cec_set_edid(&intel_dp->aux, edid);
+#else
 	drm_dp_cec_attach(&intel_dp->aux,
 			  connector->base.display_info.source_physical_address);
+#endif
 }
 
 static void
