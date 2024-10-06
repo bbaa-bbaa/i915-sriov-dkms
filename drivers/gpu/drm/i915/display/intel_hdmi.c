@@ -31,6 +31,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/string_helpers.h>
+#include <linux/version.h>
 
 #include <drm/display/drm_hdcp_helper.h>
 #include <drm/display/drm_hdmi_helper.h>
@@ -2492,10 +2493,14 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 	}
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
+	/* FIXME: Get rid of drm_edid_raw() */
+	cec_notifier_set_phys_addr_from_edid(intel_hdmi->cec_notifier,
+					     drm_edid_raw(drm_edid));
+#else
 	cec_notifier_set_phys_addr(intel_hdmi->cec_notifier,
 				   connector->display_info.source_physical_address);
-
+#endif
 	return connected;
 }
 

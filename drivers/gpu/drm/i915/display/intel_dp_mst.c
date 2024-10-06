@@ -124,7 +124,7 @@ static void intel_dp_mst_compute_m_n(const struct intel_crtc_state *crtc_state,
 
 	m_n->tu = DIV_ROUND_UP_ULL(mul_u32_u32(m_n->data_m, 64), m_n->data_n);
 }
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 static int intel_dp_mst_calc_pbn(int pixel_clock, int bpp_x16, int bw_overhead)
 {
 	int effective_data_rate =
@@ -136,6 +136,7 @@ static int intel_dp_mst_calc_pbn(int pixel_clock, int bpp_x16, int bw_overhead)
 	 */
 	return DIV_ROUND_UP(effective_data_rate * 64, 54 * 1000);
 }
+#endif
 
 static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 						struct intel_crtc_state *crtc_state,
@@ -1505,7 +1506,7 @@ intel_dp_mst_read_decompression_port_dsc_caps(struct intel_dp *intel_dp,
 
 	intel_dp_get_dsc_sink_cap(dpcd_caps[DP_DPCD_REV], connector);
 }
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 static bool detect_dsc_hblank_expansion_quirk(const struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
@@ -1535,6 +1536,7 @@ static bool detect_dsc_hblank_expansion_quirk(const struct intel_connector *conn
 
 	return true;
 }
+#endif
 
 static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 							struct drm_dp_mst_port *port,
@@ -1560,8 +1562,12 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 
 	intel_connector->dp.dsc_decompression_aux = drm_dp_mst_dsc_aux_for_port(port);
 	intel_dp_mst_read_decompression_port_dsc_caps(intel_dp, intel_connector);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 	intel_connector->dp.dsc_hblank_expansion_quirk =
 		detect_dsc_hblank_expansion_quirk(intel_connector);
+#else
+	intel_connector->dp.dsc_hblank_expansion_quirk = false;
+#endif
 
 	connector = &intel_connector->base;
 	ret = drm_connector_init(dev, connector, &intel_dp_mst_connector_funcs,
