@@ -209,12 +209,12 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 					 local_bw_overhead,
 					 link_bpp_x16,
 					 &crtc_state->dp_m_n);
-		
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
 		intel_dp_mst_compute_m_n(crtc_state, connector,
 					 remote_bw_overhead,
 					 link_bpp_x16,
 					 &remote_m_n);
-
+#endif
 		/*
 		 * The TU size programmed to the HW determines which slots in
 		 * an MTP frame are used for this stream, which needs to match
@@ -927,14 +927,22 @@ static void intel_mst_disable_dp(struct intel_atomic_state *state,
 	struct intel_dp *intel_dp = &dig_port->dp;
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	struct drm_dp_mst_topology_state *old_mst_state =
 		drm_atomic_get_old_mst_topology_state(&state->base, &intel_dp->mst_mgr);
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
 	struct drm_dp_mst_topology_state *new_mst_state =
 		drm_atomic_get_new_mst_topology_state(&state->base, &intel_dp->mst_mgr);
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	const struct drm_dp_mst_atomic_payload *old_payload =
 		drm_atomic_get_mst_payload_state(old_mst_state, connector->port);
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
 	struct drm_dp_mst_atomic_payload *new_payload =
 		drm_atomic_get_mst_payload_state(new_mst_state, connector->port);
+#endif
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
 	drm_dbg_kms(&i915->drm, "active links %d\n",
@@ -942,8 +950,12 @@ static void intel_mst_disable_dp(struct intel_atomic_state *state,
 
 	intel_hdcp_disable(intel_mst->connector);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	drm_dp_remove_payload(&intel_dp->mst_mgr, new_mst_state,
 			      old_payload, new_payload);
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+	drm_dp_remove_payload_part1(&intel_dp->mst_mgr, new_mst_state, new_payload);
+#endif
 
 	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
 
@@ -960,6 +972,16 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 	struct intel_dp *intel_dp = &dig_port->dp;
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+	struct drm_dp_mst_topology_state *old_mst_state =
+		drm_atomic_get_old_mst_topology_state(&state->base, &intel_dp->mst_mgr);
+	struct drm_dp_mst_topology_state *new_mst_state =
+		drm_atomic_get_new_mst_topology_state(&state->base, &intel_dp->mst_mgr);
+	const struct drm_dp_mst_atomic_payload *old_payload =
+		drm_atomic_get_mst_payload_state(old_mst_state, connector->port);
+	struct drm_dp_mst_atomic_payload *new_payload =
+		drm_atomic_get_mst_payload_state(new_mst_state, connector->port);
+#endif
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	bool last_mst_stream;
 
@@ -973,12 +995,21 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 
 	intel_disable_transcoder(old_crtc_state);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
+	drm_dp_remove_payload_part1(&intel_dp->mst_mgr, new_mst_state, new_payload);
+#endif
+
 	clear_act_sent(encoder, old_crtc_state);
 
 	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder),
 		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC, 0);
 
 	wait_for_act_sent(encoder, old_crtc_state);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+	drm_dp_remove_payload_part2(&intel_dp->mst_mgr, new_mst_state,
+				 old_payload, new_payload);
+#endif
 
 	intel_ddi_disable_transcoder_func(old_crtc_state);
 
@@ -1161,10 +1192,13 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	if (first_mst_stream)
 		intel_ddi_wait_for_fec_status(encoder, pipe_config, true);
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	drm_dp_add_payload_part2(&intel_dp->mst_mgr, &state->base,
 				 drm_atomic_get_mst_payload_state(mst_state, connector->port));
-
+#else
+	drm_dp_add_payload_part2(&intel_dp->mst_mgr,
+				 drm_atomic_get_mst_payload_state(mst_state, connector->port));
+#endif
 	if (DISPLAY_VER(dev_priv) >= 14 && pipe_config->fec_enable)
 		intel_de_rmw(dev_priv, MTL_CHICKEN_TRANS(trans), 0,
 			     FECSTALL_DIS_DPTSTREAM_DPTTG);

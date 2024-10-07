@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/version.h>
 
 #include <drm/drm_connector.h>
 #include <drm/drm_modeset_lock.h>
@@ -174,6 +175,11 @@ struct intel_hotplug {
 	unsigned int hpd_storm_threshold;
 	/* Whether or not to count short HPD IRQs in HPD storms */
 	u8 hpd_short_storm_enabled;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+	/* Last state reported by oob_hotplug_event for each encoder */
+	unsigned long oob_hotplug_last_state;
+#endif
 
 	/*
 	 * if we get a HPD irq from DP and a HPD irq from non-DP

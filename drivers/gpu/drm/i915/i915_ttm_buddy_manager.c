@@ -4,6 +4,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/version.h>
 
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_bo.h>
@@ -58,7 +59,10 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		bman_res->flags |= DRM_BUDDY_TOPDOWN_ALLOCATION;
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+	if (place->flags & TTM_PL_FLAG_CONTIGUOUS)
+		bman_res->flags |= DRM_BUDDY_CONTIGUOUS_ALLOCATION;
+#endif
 	if (place->fpfn || lpfn != man->size)
 		bman_res->flags |= DRM_BUDDY_RANGE_ALLOCATION;
 
@@ -71,7 +75,7 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 
 	GEM_BUG_ON(min_page_size < mm->chunk_size);
 	GEM_BUG_ON(!IS_ALIGNED(size, min_page_size));
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	if (place->fpfn + PFN_UP(bman_res->base.size) != place->lpfn &&
 	    place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		unsigned long pages;
@@ -83,6 +87,7 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 		if (pages > lpfn)
 			lpfn = pages;
 	}
+#endif
 
 	if (size > lpfn << PAGE_SHIFT) {
 		err = -E2BIG;
@@ -107,6 +112,7 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 	if (unlikely(err))
 		goto err_free_blocks;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		u64 original_size = (u64)bman_res->base.size;
 
@@ -114,6 +120,7 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 				     original_size,
 				     &bman_res->blocks);
 	}
+#endif
 
 	if (lpfn <= bman->visible_size) {
 		bman_res->used_visible_size = PFN_UP(bman_res->base.size);
@@ -143,7 +150,11 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 	return 0;
 
 err_free_blocks:
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	drm_buddy_free_list(mm, &bman_res->blocks);
+#else
+	drm_buddy_free_list(mm, &bman_res->blocks, 0);
+#endif
 	mutex_unlock(&bman->lock);
 err_free_res:
 	ttm_resource_fini(man, &bman_res->base);
@@ -158,7 +169,11 @@ static void i915_ttm_buddy_man_free(struct ttm_resource_manager *man,
 	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
 
 	mutex_lock(&bman->lock);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	drm_buddy_free_list(&bman->mm, &bman_res->blocks);
+#else
+	drm_buddy_free_list(&bman->mm, &bman_res->blocks, 0);
+#endif
 	bman->visible_avail += bman_res->used_visible_size;
 	mutex_unlock(&bman->lock);
 
@@ -362,7 +377,11 @@ int i915_ttm_buddy_man_fini(struct ttm_device *bdev, unsigned int type)
 	ttm_set_driver_manager(bdev, type, NULL);
 
 	mutex_lock(&bman->lock);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	drm_buddy_free_list(mm, &bman->reserved);
+#else
+	drm_buddy_free_list(mm, &bman->reserved, 0);
+#endif
 	drm_buddy_fini(mm);
 	bman->visible_avail += bman->visible_reserved;
 	WARN_ON_ONCE(bman->visible_avail != bman->visible_size);

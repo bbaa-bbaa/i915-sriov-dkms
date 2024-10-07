@@ -21,6 +21,8 @@
  * SOFTWARE.
  */
 
+#include <linux/vmalloc.h>
+
 #include "i915_drv.h"
 #include "i915_vgpu.h"
 #include "intel_gvt.h"

@@ -35,6 +35,7 @@
 #include <linux/string_helpers.h>
 #include <linux/utsname.h>
 #include <linux/zlib.h>
+#include <linux/debugfs.h>
 
 #include <drm/drm_cache.h>
 #include <drm/drm_print.h>

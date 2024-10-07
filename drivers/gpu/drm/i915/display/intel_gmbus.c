@@ -30,6 +30,7 @@
 #include <linux/export.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c.h>
+#include <linux/version.h>
 
 #include <drm/display/drm_hdcp_helper.h>
 
@@ -899,7 +900,9 @@ int intel_gmbus_setup(struct drm_i915_private *i915)
 		}
 
 		bus->adapter.owner = THIS_MODULE;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
 		bus->adapter.class = I2C_CLASS_DDC;
+#endif
 		snprintf(bus->adapter.name,
 			 sizeof(bus->adapter.name),
 			 "i915 gmbus %s", gmbus_pin->name);

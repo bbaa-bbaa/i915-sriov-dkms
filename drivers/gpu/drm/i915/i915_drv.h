@@ -33,6 +33,7 @@
 #include <uapi/drm/i915_drm.h>
 
 #include <linux/pm_qos.h>
+#include <linux/version.h>
 
 #include <drm/ttm/ttm_device.h>
 
@@ -166,7 +167,11 @@ struct i915_gem_mm {
 
 	struct notifier_block oom_notifier;
 	struct notifier_block vmap_notifier;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	struct shrinker shrinker;
+#else
+	struct shrinker *shrinker;
+#endif
 
 	/* shrinker accounting, also useful for userland debugging */
 	u64 shrink_memory;

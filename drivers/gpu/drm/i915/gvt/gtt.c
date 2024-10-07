@@ -33,6 +33,8 @@
  *
  */
 
+#include <linux/vmalloc.h>
+
 #include "i915_drv.h"
 #include "gvt.h"
 #include "i915_pvinfo.h"

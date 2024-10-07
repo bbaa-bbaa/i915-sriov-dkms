@@ -23,9 +23,14 @@
  */
 
 #include <linux/string_helpers.h>
+#include <linux/version.h>
 
 #include <drm/drm_print.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 #include <drm/i915_pciids.h>
+#else
+#include <drm/intel/i915_pciids.h>
+#endif
 
 #include "display/intel_display_device.h"
 #include "gt/intel_gt_regs.h"
@@ -130,9 +135,14 @@ void intel_device_info_print(const struct intel_device_info *info,
 	drm_printf(p, "rawclk rate: %u kHz\n", runtime->rawclk_freq);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 #undef INTEL_VGA_DEVICE
 #define INTEL_VGA_DEVICE(id, info) (id)
+#else
+#define ID(id) (id)
+#endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 static const u16 subplatform_ult_ids[] = {
 	INTEL_HSW_ULT_GT1_IDS(0),
 	INTEL_HSW_ULT_GT2_IDS(0),
@@ -205,6 +215,81 @@ static const u16 subplatform_g11_ids[] = {
 static const u16 subplatform_g12_ids[] = {
 	INTEL_DG2_G12_IDS(0),
 };
+#else
+static const u16 subplatform_ult_ids[] = {
+	INTEL_HSW_ULT_GT1_IDS(ID),
+	INTEL_HSW_ULT_GT2_IDS(ID),
+	INTEL_HSW_ULT_GT3_IDS(ID),
+	INTEL_BDW_ULT_GT1_IDS(ID),
+	INTEL_BDW_ULT_GT2_IDS(ID),
+	INTEL_BDW_ULT_GT3_IDS(ID),
+	INTEL_BDW_ULT_RSVD_IDS(ID),
+	INTEL_SKL_ULT_GT1_IDS(ID),
+	INTEL_SKL_ULT_GT2_IDS(ID),
+	INTEL_SKL_ULT_GT3_IDS(ID),
+	INTEL_KBL_ULT_GT1_IDS(ID),
+	INTEL_KBL_ULT_GT2_IDS(ID),
+	INTEL_KBL_ULT_GT3_IDS(ID),
+	INTEL_CFL_U_GT2_IDS(ID),
+	INTEL_CFL_U_GT3_IDS(ID),
+	INTEL_WHL_U_GT1_IDS(ID),
+	INTEL_WHL_U_GT2_IDS(ID),
+	INTEL_WHL_U_GT3_IDS(ID),
+	INTEL_CML_U_GT1_IDS(ID),
+	INTEL_CML_U_GT2_IDS(ID),
+};
+
+static const u16 subplatform_ulx_ids[] = {
+	INTEL_HSW_ULX_GT1_IDS(ID),
+	INTEL_HSW_ULX_GT2_IDS(ID),
+	INTEL_BDW_ULX_GT1_IDS(ID),
+	INTEL_BDW_ULX_GT2_IDS(ID),
+	INTEL_BDW_ULX_GT3_IDS(ID),
+	INTEL_BDW_ULX_RSVD_IDS(ID),
+	INTEL_SKL_ULX_GT1_IDS(ID),
+	INTEL_SKL_ULX_GT2_IDS(ID),
+	INTEL_KBL_ULX_GT1_IDS(ID),
+	INTEL_KBL_ULX_GT2_IDS(ID),
+	INTEL_AML_KBL_GT2_IDS(ID),
+	INTEL_AML_CFL_GT2_IDS(ID),
+};
+
+static const u16 subplatform_portf_ids[] = {
+	INTEL_ICL_PORT_F_IDS(ID),
+};
+
+static const u16 subplatform_uy_ids[] = {
+	INTEL_TGL_GT2_IDS(ID),
+};
+
+static const u16 subplatform_n_ids[] = {
+	INTEL_ADLN_IDS(ID),
+};
+
+static const u16 subplatform_rpl_ids[] = {
+	INTEL_RPLS_IDS(ID),
+	INTEL_RPLU_IDS(ID),
+	INTEL_RPLP_IDS(ID),
+};
+
+static const u16 subplatform_rplu_ids[] = {
+	INTEL_RPLU_IDS(ID),
+};
+
+static const u16 subplatform_g10_ids[] = {
+	INTEL_DG2_G10_IDS(ID),
+	INTEL_ATS_M150_IDS(ID),
+};
+
+static const u16 subplatform_g11_ids[] = {
+	INTEL_DG2_G11_IDS(ID),
+	INTEL_ATS_M75_IDS(ID),
+};
+
+static const u16 subplatform_g12_ids[] = {
+	INTEL_DG2_G12_IDS(ID),
+};
+#endif
 
 static bool find_devid(u16 id, const u16 *p, unsigned int num)
 {

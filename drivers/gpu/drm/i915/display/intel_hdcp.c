@@ -11,9 +11,14 @@
 #include <linux/component.h>
 #include <linux/i2c.h>
 #include <linux/random.h>
+#include <linux/version.h>
 
 #include <drm/display/drm_hdcp_helper.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 #include <drm/i915_component.h>
+#else
+#include <drm/intel/i915_component.h>
+#endif
 
 #include "i915_drv.h"
 #include "i915_reg.h"

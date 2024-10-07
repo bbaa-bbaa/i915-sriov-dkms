@@ -4,9 +4,16 @@
  */
 
 #include <linux/component.h>
+#include <linux/version.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 #include <drm/i915_component.h>
 #include <drm/i915_gsc_proxy_mei_interface.h>
+#else
+#include <drm/intel/i915_component.h>
+#include <drm/intel/i915_gsc_proxy_mei_interface.h>
+#endif
+
 
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_print.h"

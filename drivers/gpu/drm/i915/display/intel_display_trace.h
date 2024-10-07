@@ -12,6 +12,7 @@
 #include <linux/string_helpers.h>
 #include <linux/types.h>
 #include <linux/tracepoint.h>
+#include <linux/version.h>
 
 #include "i915_drv.h"
 #include "intel_crtc.h"
@@ -34,7 +35,11 @@ TRACE_EVENT(intel_pipe_enable,
 	    TP_fast_assign(
 			   struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 			   struct intel_crtc *it__;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   for_each_intel_crtc(&dev_priv->drm, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
@@ -63,7 +68,11 @@ TRACE_EVENT(intel_pipe_disable,
 	    TP_fast_assign(
 			   struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 			   struct intel_crtc *it__;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   for_each_intel_crtc(&dev_priv->drm, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
@@ -91,7 +100,11 @@ TRACE_EVENT(intel_pipe_crc,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -119,7 +132,11 @@ TRACE_EVENT(intel_cpu_fifo_underrun,
 
 	    TP_fast_assign(
 			    struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -144,7 +161,11 @@ TRACE_EVENT(intel_pch_fifo_underrun,
 	    TP_fast_assign(
 			   enum pipe pipe = pch_transcoder;
 			   struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_i915(dev_priv));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -169,7 +190,11 @@ TRACE_EVENT(intel_memory_cxsr,
 
 	    TP_fast_assign(
 			   struct intel_crtc *crtc;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_i915(dev_priv));
+#else
+			   __assign_str(dev);
+#endif
 			   for_each_intel_crtc(&dev_priv->drm, crtc) {
 				   __entry->frame[crtc->pipe] = intel_crtc_get_vblank_counter(crtc);
 				   __entry->scanline[crtc->pipe] = intel_get_crtc_scanline(crtc);
@@ -209,7 +234,11 @@ TRACE_EVENT(g4x_wm,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -256,7 +285,11 @@ TRACE_EVENT(vlv_wm,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -293,7 +326,11 @@ TRACE_EVENT(vlv_fifo_size,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -323,8 +360,13 @@ TRACE_EVENT(intel_plane_update_noarm,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(plane));
 			   __assign_str(name, plane->base.name);
+#else
+			   __assign_str(dev);
+			   __assign_str(name);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -354,8 +396,13 @@ TRACE_EVENT(intel_plane_update_arm,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name);
+				 __assign_str(name, plane->base.name);
+#else
+			   __assign_str(dev);
+			   __assign_str(name);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -383,8 +430,13 @@ TRACE_EVENT(intel_plane_disable_arm,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name);
+				 __assign_str(name, plane->base.name);
+#else
+			   __assign_str(dev);
+			   __assign_str(name);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -410,8 +462,13 @@ TRACE_EVENT(intel_fbc_activate,
 	    TP_fast_assign(
 			   struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(plane->base.dev),
 									 plane->pipe);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name);
+				 __assign_str(name, plane->base.name);
+#else
+			   __assign_str(dev);
+			   __assign_str(name);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -437,8 +494,13 @@ TRACE_EVENT(intel_fbc_deactivate,
 	    TP_fast_assign(
 			   struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(plane->base.dev),
 									 plane->pipe);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name);
+				 __assign_str(name, plane->base.name);
+#else
+			   __assign_str(dev);
+			   __assign_str(name);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -464,8 +526,13 @@ TRACE_EVENT(intel_fbc_nuke,
 	    TP_fast_assign(
 			   struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(plane->base.dev),
 									 plane->pipe);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(plane));
-			   __assign_str(name, plane->base.name);
+				 __assign_str(name, plane->base.name);
+#else
+			   __assign_str(dev);
+			   __assign_str(name);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -488,7 +555,11 @@ TRACE_EVENT(intel_crtc_vblank_work_start,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -511,7 +582,11 @@ TRACE_EVENT(intel_crtc_vblank_work_end,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -536,7 +611,11 @@ TRACE_EVENT(intel_pipe_update_start,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
@@ -564,7 +643,11 @@ TRACE_EVENT(intel_pipe_update_vblank_evaded,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = crtc->debug.start_vbl_count;
 			   __entry->scanline = crtc->debug.scanline_start;
@@ -590,7 +673,11 @@ TRACE_EVENT(intel_pipe_update_end,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_kms(crtc));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->pipe = crtc->pipe;
 			   __entry->frame = frame;
 			   __entry->scanline = scanline_end;
@@ -613,7 +700,11 @@ TRACE_EVENT(intel_frontbuffer_invalidate,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_i915(i915));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->frontbuffer_bits = frontbuffer_bits;
 			   __entry->origin = origin;
 			   ),
@@ -634,7 +725,11 @@ TRACE_EVENT(intel_frontbuffer_flush,
 			     ),
 
 	    TP_fast_assign(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 			   __assign_str(dev, __dev_name_i915(i915));
+#else
+			   __assign_str(dev);
+#endif
 			   __entry->frontbuffer_bits = frontbuffer_bits;
 			   __entry->origin = origin;
 			   ),

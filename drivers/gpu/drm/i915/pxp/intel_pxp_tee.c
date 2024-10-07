@@ -4,9 +4,15 @@
  */
 
 #include <linux/component.h>
+#include <linux/version.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 #include <drm/i915_pxp_tee_interface.h>
 #include <drm/i915_component.h>
+#else
+#include <drm/intel/i915_pxp_tee_interface.h>
+#include <drm/intel/i915_component.h>
+#endif
 
 #include "gem/i915_gem_lmem.h"
 #include "gt/intel_gt_print.h"
@@ -20,6 +26,10 @@
 #include "intel_pxp_session.h"
 #include "intel_pxp_tee.h"
 #include "intel_pxp_types.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+#define PXP_TRANSPORT_TIMEOUT_MS 5000 /* 5 sec */
+#endif
 
 static bool
 is_fw_err_platform_config(struct intel_pxp *pxp, u32 type)
@@ -76,14 +86,23 @@ int intel_pxp_tee_io_message(struct intel_pxp *pxp,
 
 	if (pxp->mei_pxp_last_msg_interrupted) {
 		/* read and drop data from the previous iteration */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 		ret = pxp_component->ops->recv(pxp_component->tee_dev, &tmp_drop_buf, 64);
+#else
+		ret = pxp_component->ops->recv(pxp_component->tee_dev, &tmp_drop_buf, 64,
+							 PXP_TRANSPORT_TIMEOUT_MS);
+#endif
 		if (ret == -EINTR)
 			goto unlock;
 
 		pxp->mei_pxp_last_msg_interrupted = false;
 	}
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	ret = pxp_component->ops->send(pxp_component->tee_dev, msg_in, msg_in_size);
+#else
+	ret = pxp_component->ops->send(pxp_component->tee_dev, msg_in, msg_in_size,
+				       PXP_TRANSPORT_TIMEOUT_MS);
+#endif
 	if (ret) {
 		/* flag on next msg to drop interrupted msg */
 		if (ret == -EINTR)
@@ -92,7 +111,12 @@ int intel_pxp_tee_io_message(struct intel_pxp *pxp,
 		goto unlock;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	ret = pxp_component->ops->recv(pxp_component->tee_dev, msg_out, msg_out_max_size);
+#else
+	ret = pxp_component->ops->recv(pxp_component->tee_dev, msg_out, msg_out_max_size,
+				       PXP_TRANSPORT_TIMEOUT_MS);
+#endif
 	if (ret < 0) {
 		/* flag on next msg to drop interrupted msg */
 		if (ret == -EINTR)

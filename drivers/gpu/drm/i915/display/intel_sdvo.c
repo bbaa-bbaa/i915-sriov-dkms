@@ -30,12 +30,15 @@
 #include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 
 #include <drm/display/drm_hdmi_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
+#include <drm/drm_eld.h>
+#endif
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
@@ -3317,7 +3320,9 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo_ddc *ddc,
 	ddc->ddc_bus = ddc_bus;
 
 	ddc->ddc.owner = THIS_MODULE;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
 	ddc->ddc.class = I2C_CLASS_DDC;
+#endif
 	snprintf(ddc->ddc.name, I2C_NAME_SIZE, "SDVO %c DDC%d",
 		 port_name(sdvo->base.port), ddc_bus);
 	ddc->ddc.dev.parent = &pdev->dev;

@@ -86,6 +86,11 @@
 #define DP_DSC_MAX_ENC_THROUGHPUT_0		340000
 #define DP_DSC_MAX_ENC_THROUGHPUT_1		400000
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+/* Max DSC line buffer depth supported by HW. */
+#define INTEL_DP_DSC_MAX_LINE_BUF_DEPTH		13
+#endif
+
 /* DP DSC FEC Overhead factor in ppm = 1/(0.972261) = 1.028530 */
 #define DP_DSC_FEC_OVERHEAD_FACTOR		1028530
 
@@ -1707,7 +1712,9 @@ static int intel_dp_dsc_compute_params(const struct intel_connector *connector,
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	u8 line_buf_depth;
+#endif
 	int ret;
 
 	/*
@@ -1735,20 +1742,27 @@ static int intel_dp_dsc_compute_params(const struct intel_connector *connector,
 		vdsc_cfg->convert_rgb =
 			connector->dp.dsc_dpcd[DP_DSC_DEC_COLOR_FORMAT_CAP - DP_DSC_SUPPORT] &
 			DP_DSC_RGB;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	line_buf_depth = drm_dp_dsc_sink_line_buf_depth(connector->dp.dsc_dpcd);
 	if (!line_buf_depth) {
+#else
+	vdsc_cfg->line_buf_depth = min(INTEL_DP_DSC_MAX_LINE_BUF_DEPTH,
+				       drm_dp_dsc_sink_line_buf_depth(connector->dp.dsc_dpcd));
+	if (!vdsc_cfg->line_buf_depth) {
+#endif
 		drm_dbg_kms(&i915->drm,
 			    "DSC Sink Line Buffer Depth invalid\n");
 		return -EINVAL;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	if (vdsc_cfg->dsc_version_minor == 2)
 		vdsc_cfg->line_buf_depth = (line_buf_depth == DSC_1_2_MAX_LINEBUF_DEPTH_BITS) ?
 			DSC_1_2_MAX_LINEBUF_DEPTH_VAL : line_buf_depth;
 	else
 		vdsc_cfg->line_buf_depth = (line_buf_depth > DSC_1_1_MAX_LINEBUF_DEPTH_BITS) ?
 			DSC_1_1_MAX_LINEBUF_DEPTH_BITS : line_buf_depth;
+#endif
 
 	vdsc_cfg->block_pred_enable =
 		connector->dp.dsc_dpcd[DP_DSC_BLK_PREDICTION_SUPPORT - DP_DSC_SUPPORT] &
@@ -5499,15 +5513,20 @@ intel_dp_update_dfp(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_connector *connector = intel_dp->attached_connector;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	const struct edid *edid;
 
 	/* FIXME: Get rid of drm_edid_raw() */
 	edid = drm_edid_raw(drm_edid);
+#endif
 
 	intel_dp->dfp.max_bpc =
 		drm_dp_downstream_max_bpc(intel_dp->dpcd,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 					  intel_dp->downstream_ports, edid);
-
+#else
+					  intel_dp->downstream_ports, drm_edid);
+#endif
 	intel_dp->dfp.max_dotclock =
 		drm_dp_downstream_max_dotclock(intel_dp->dpcd,
 					       intel_dp->downstream_ports);
@@ -5515,11 +5534,19 @@ intel_dp_update_dfp(struct intel_dp *intel_dp,
 	intel_dp->dfp.min_tmds_clock =
 		drm_dp_downstream_min_tmds_clock(intel_dp->dpcd,
 						 intel_dp->downstream_ports,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 						 edid);
+#else
+						 drm_edid);
+#endif
 	intel_dp->dfp.max_tmds_clock =
 		drm_dp_downstream_max_tmds_clock(intel_dp->dpcd,
 						 intel_dp->downstream_ports,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 						 edid);
+#else
+						 drm_edid);
+#endif
 
 	intel_dp->dfp.pcon_max_frl_bw =
 		drm_dp_get_pcon_max_frl_bw(intel_dp->dpcd,
@@ -6044,16 +6071,40 @@ static int intel_dp_connector_atomic_check(struct drm_connector *conn,
 
 	return intel_modeset_synced_crtcs(state, conn);
 }
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 static void intel_dp_oob_hotplug_event(struct drm_connector *connector)
+#else
+static void intel_dp_oob_hotplug_event(struct drm_connector *connector,
+				       enum drm_connector_status hpd_state)
+#endif
 {
 	struct intel_encoder *encoder = intel_attached_encoder(to_intel_connector(connector));
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
+	bool hpd_high = hpd_state == connector_status_connected;
+	unsigned int hpd_pin = encoder->hpd_pin;
+	bool need_work = false;
+#endif
+
 	spin_lock_irq(&i915->irq_lock);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	i915->display.hotplug.event_bits |= BIT(encoder->hpd_pin);
+#else
+	if (hpd_high != test_bit(hpd_pin, &i915->display.hotplug.oob_hotplug_last_state)) {
+		i915->display.hotplug.event_bits |= BIT(hpd_pin);
+		__assign_bit(hpd_pin, &i915->display.hotplug.oob_hotplug_last_state, hpd_high);
+		need_work = true;
+	}
+#endif
 	spin_unlock_irq(&i915->irq_lock);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	queue_delayed_work(i915->unordered_wq, &i915->display.hotplug.hotplug_work, 0);
+#else
+	if (need_work)
+		queue_delayed_work(i915->unordered_wq, &i915->display.hotplug.hotplug_work, 0);
+#endif
 }
 
 static const struct drm_connector_funcs intel_dp_connector_funcs = {

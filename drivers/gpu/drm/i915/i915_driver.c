@@ -38,6 +38,7 @@
 #include <linux/string_helpers.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/vt.h>
+#include <linux/version.h>
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
@@ -700,7 +701,12 @@ i915_print_iommu_status(struct drm_i915_private *i915, struct drm_printer *p)
 static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 {
 	if (drm_debug_enabled(DRM_UT_DRIVER)) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0)
 		struct drm_printer p = drm_debug_printer("i915 device info:");
+#else
+		struct drm_printer p = drm_dbg_printer(&dev_priv->drm, DRM_UT_DRIVER,
+						       "device info:");
+#endif
 		struct intel_gt *gt;
 		unsigned int i;
 
