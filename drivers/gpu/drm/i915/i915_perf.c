@@ -195,6 +195,7 @@
 #include <linux/nospec.h>
 #include <linux/sizes.h>
 #include <linux/uuid.h>
+#include <linux/version.h>
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_internal.h"
@@ -4852,7 +4853,9 @@ static struct ctl_table oa_table[] = {
 	 .extra1 = SYSCTL_ZERO,
 	 .extra2 = &oa_sample_rate_hard_limit,
 	 },
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
 	{}
+#endif
 };
 
 static u32 num_perf_groups_per_gt(struct intel_gt *gt)
