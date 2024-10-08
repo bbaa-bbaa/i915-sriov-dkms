@@ -2,6 +2,20 @@
 KERNELRELEASE ?= $(shell uname -r)
 KERNELVERSION := $(shell var=$(KERNELRELEASE); echo $${var%%-*})
 
+# Kernel extraversion (separated by dashes)
+EXTRAVERSION        := $(shell var=$(KERNELRELEASE); echo $${var#*-})
+EXTRAVERSION_MAJOR  := $(shell var=$(EXTRAVERSION); var=$$(echo $${var%-*} | awk -F. '{x=$$1+0; print x}'); echo $${var:-0})
+EXTRAVERSION_MINOR  := $(shell var=$(EXTRAVERSION); var=$$(echo $${var%-*} | awk -F. '{x=$$2+0; print x}'); echo $${var:-0})
+EXTRAVERSION_NAME   := $(shell var=$(EXTRAVERSION); echo $${var#*-})
+EXTRAVERSION_DEFINE := $(shell var=$(EXTRAVERSION_NAME); var=$$(echo $$var  | sed 's/-/_/'| awk '{print toupper($$0)}'); echo EXTRAVERSION_$${var:-EMPTY})
+
+# LSB release
+LSBRELEASE          := $(shell lsb_release -rs 2> /dev/null || cat /etc/*-release | grep '^VERSION_ID=' | head -n1 | cut -d '=' -f2 | xargs)
+LSBRELEASE_MAJOR    := $(shell var=$$(echo $(LSBRELEASE) | awk -F. '{x=$$1+0; print x}'); echo $${var:-0})
+LSBRELEASE_MINOR    := $(shell var=$$(echo $(LSBRELEASE) | awk -F. '{x=$$2+0; print x}'); echo $${var:-0})
+LSBRELEASE_NAME     := $(shell lsb_release -is 2> /dev/null || cat /etc/*-release | grep '^ID=' | head -n1 | cut -d '=' -f2 | xargs)
+LSBRELEASE_DEFINE   := $(shell var=$(LSBRELEASE_NAME); var=$$(echo $$var | sed 's/-/_/' | awk '{print toupper($$0)}'); echo RELEASE_$${var:-EMPTY})
+
 version:
 $(info KERNELRELEASE=$(KERNELRELEASE))
 $(info KERNELVERSION=$(KERNELVERSION))
@@ -15,7 +29,13 @@ EXTRA_CFLAGS += -DCONFIG_PM -DCONFIG_DEBUG_FS -DCONFIG_PNP -DCONFIG_PROC_FS \
 				-DCONFIG_MMU_NOTIFIER -DCONFIG_DRM_I915_COMPRESS_ERROR \
 				-DCONFIG_COMPAT -DCONFIG_PERF_EVENTS -DCONFIG_PCI_IOV \
 				-DCONFIG_X86 -DCONFIG_ACPI -DCONFIG_DRM_FBDEV_EMULATION \
-				-DCONFIG_PMIC_OPREGION -DCONFIG_SWIOTLB -DCONFIG_DRM_I915_PXP
+				-DCONFIG_PMIC_OPREGION -DCONFIG_SWIOTLB -DCONFIG_DRM_I915_PXP \
+				-DEXTRAVERSION_MAJOR=$(EXTRAVERSION_MAJOR) \
+				-DEXTRAVERSION_MINOR=$(EXTRAVERSION_MINOR) \
+				-D$(EXTRAVERSION_DEFINE) \
+				-DLSBRELEASE_MAJOR=$(LSBRELEASE_MAJOR) \
+				-DLSBRELEASE_MINOR=$(LSBRELEASE_MINOR) \
+				-D$(LSBRELEASE_DEFINE)
 
 KBUILD_MODPOST_WARN = 1
 
