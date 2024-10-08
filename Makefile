@@ -413,21 +413,6 @@ include $(KBUILD_EXTMOD)/drivers/gpu/drm/i915/gvt/Makefile
 
 i915-y := $(addprefix drivers/gpu/drm/i915/,$(i915-y))
 
-
-# ----------------------------------------------------------------------------
-# backport code
-#
-
-backport += \
-	backport/drivers/gpu/drm/drm_property.o \
-	backport/drivers/gpu/drm/drm_edid.o \
-	backport/drivers/gpu/drm/display/drm_dp_helper.o \
-	backport/drivers/gpu/drm/display/drm_dp_cec.o \
-	backport/drivers/gpu/drm/display/drm_dp_mst_topology.o
-
-i915-y := $(backport) \
-				$(i915-y)
-
 # ----------------------------------------------------------------------------
 # common to all modules
 #
