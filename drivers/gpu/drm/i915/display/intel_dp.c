@@ -450,7 +450,7 @@ intel_dp_max_data_rate(int max_link_rate, int max_lanes)
 	return max_link_rate * max_lanes;
 #else
 	int ch_coding_efficiency =
-		drm_dp_bw_channel_coding_efficiency(intel_dp_is_uhbr_rate(max_link_rate));
+		drm_dp_bw_channel_coding_efficiency(drm_dp_is_uhbr_rate(max_link_rate));
 	int max_link_rate_kbps = max_link_rate * 10;
 
 	/*
