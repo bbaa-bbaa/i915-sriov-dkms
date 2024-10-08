@@ -29,6 +29,8 @@
  * See intel_atomic_plane.c for the plane-specific atomic functionality.
  */
 
+#include <linux/version.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
@@ -67,9 +69,11 @@ int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
 		*val = intel_conn_state->force_audio;
 	else if (property == dev_priv->display.properties.broadcast_rgb)
 		*val = intel_conn_state->broadcast_rgb;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	else if (property == dev_priv->display.properties.border)
 		*val = (intel_conn_state->border) ?
 		       intel_conn_state->border->base.id : 0;
+#endif
 	else {
 		drm_dbg_atomic(&dev_priv->drm,
 			       "Unknown property [PROP:%d:%s]\n",
@@ -98,8 +102,10 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(state);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	bool replaced;
 	int ret;
+#endif
 
 	if (property == dev_priv->display.properties.force_audio) {
 		intel_conn_state->force_audio = val;
@@ -110,7 +116,7 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 		intel_conn_state->broadcast_rgb = val;
 		return 0;
 	}
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	if (property == dev_priv->display.properties.border) {
 		ret = drm_property_replace_blob_from_id(dev,
 						&intel_conn_state->border,
@@ -119,12 +125,14 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 						&replaced);
 		return ret;
 	}
+#endif
 
 	drm_dbg_atomic(&dev_priv->drm, "Unknown property [PROP:%d:%s]\n",
 		       property->base.id, property->name);
 	return -EINVAL;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 static bool intel_connector_blob_equal(struct drm_property_blob *old_blob,
 				       struct drm_property_blob *new_blob)
 {
@@ -136,6 +144,7 @@ static bool intel_connector_blob_equal(struct drm_property_blob *old_blob,
 
 	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
 }
+#endif
 
 int intel_digital_connector_atomic_check(struct drm_connector *conn,
 					 struct drm_atomic_state *state)
@@ -168,8 +177,12 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	    new_conn_state->base.content_type != old_conn_state->base.content_type ||
 	    new_conn_state->base.scaling_mode != old_conn_state->base.scaling_mode ||
 	    new_conn_state->base.privacy_screen_sw_state != old_conn_state->base.privacy_screen_sw_state ||
-	    !drm_connector_atomic_hdr_metadata_equal(old_state, new_state) ||
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+	    !drm_connector_atomic_hdr_metadata_equal(old_state, new_state))
+#else
+			!drm_connector_atomic_hdr_metadata_equal(old_state, new_state) ||
 	    !intel_connector_blob_equal(old_conn_state->border, new_conn_state->border))
+#endif
 		crtc_state->mode_changed = true;
 
 	return 0;

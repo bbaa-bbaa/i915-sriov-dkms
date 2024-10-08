@@ -1250,8 +1250,10 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 								      DP_DSC_YCbCr420_Native)),
 			   str_yes_no(drm_dp_dsc_sink_supports_format(connector->dp.dsc_dpcd,
 								      DP_DSC_YCbCr444)));
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 		seq_printf(m, "DSC_Sink_BPP_Precision: %d\n",
 			   drm_dp_dsc_sink_bpp_incr(connector->dp.dsc_dpcd));
+#endif
 		seq_printf(m, "Force_DSC_Enable: %s\n",
 			   str_yes_no(intel_dp->force_dsc_en));
 		if (!intel_dp_is_edp(intel_dp))
@@ -1444,6 +1446,7 @@ static const struct file_operations i915_dsc_output_format_fops = {
 	.write = i915_dsc_output_format_write
 };
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 static int i915_dsc_fractional_bpp_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
@@ -1522,6 +1525,7 @@ static const struct file_operations i915_dsc_fractional_bpp_fops = {
 	.release = single_release,
 	.write = i915_dsc_fractional_bpp_write
 };
+#endif
 
 /*
  * Returns the Current CRTC's bpc.
@@ -1600,9 +1604,10 @@ void intel_connector_debugfs_add(struct intel_connector *intel_connector)
 
 		debugfs_create_file("i915_dsc_output_format", 0644, root,
 				    connector, &i915_dsc_output_format_fops);
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 		debugfs_create_file("i915_dsc_fractional_bpp", 0644, root,
 				    connector, &i915_dsc_fractional_bpp_fops);
+#endif
 	}
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_DSI ||

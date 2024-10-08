@@ -69,7 +69,7 @@ static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp
 
 	return 0;
 }
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
 				    const struct intel_connector *connector,
 				    bool ssc, bool dsc, int bpp_x16)
@@ -124,7 +124,7 @@ static void intel_dp_mst_compute_m_n(const struct intel_crtc_state *crtc_state,
 
 	m_n->tu = DIV_ROUND_UP_ULL(mul_u32_u32(m_n->data_m, 64), m_n->data_n);
 }
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
+
 static int intel_dp_mst_calc_pbn(int pixel_clock, int bpp_x16, int bw_overhead)
 {
 	int effective_data_rate =
@@ -166,12 +166,14 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	crtc_state->lane_count = limits->max_lane_count;
 	crtc_state->port_clock = limits->max_rate;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 	if (dsc) {
 		if (!intel_dp_supports_fec(intel_dp, connector, crtc_state))
 			return -EINVAL;
 
 		crtc_state->fec_enable = !intel_dp_is_uhbr(crtc_state);
 	}
+#endif
 
 	mst_state->pbn_div = drm_dp_get_vc_payload_bw(&intel_dp->mst_mgr,
 						      crtc_state->port_clock,
@@ -181,22 +183,19 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		    min_bpp, max_bpp);
 
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
-		struct intel_link_m_n remote_m_n;
-#else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 		int remote_tu;
-#endif
 		int local_bw_overhead;
 		int remote_bw_overhead;
 		int link_bpp_x16;
+#endif
 		
-
 		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
 
 		ret = intel_dp_mst_check_constraints(i915, bpp, adjusted_mode, crtc_state, dsc);
 		if (ret)
 			continue;
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 		link_bpp_x16 = to_bpp_x16(dsc ? bpp :
 					  intel_dp_output_bpp(crtc_state->output_format, bpp));
 
@@ -209,12 +208,11 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 					 local_bw_overhead,
 					 link_bpp_x16,
 					 &crtc_state->dp_m_n);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
-		intel_dp_mst_compute_m_n(crtc_state, connector,
-					 remote_bw_overhead,
-					 link_bpp_x16,
-					 &remote_m_n);
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+		crtc_state->pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock,
+						       bpp << 4);
+#else
 		/*
 		 * The TU size programmed to the HW determines which slots in
 		 * an MTP frame are used for this stream, which needs to match
@@ -229,11 +227,6 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		 * crtc_state->dp_m_n.tu), provided that the driver doesn't
 		 * enable SSC on the corresponding link.
 		 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
-		drm_WARN_ON(&i915->drm, remote_m_n.tu < crtc_state->dp_m_n.tu);
-		crtc_state->dp_m_n.tu = remote_m_n.tu;
-		crtc_state->pbn = remote_m_n.tu * mst_state->pbn_div;
-#else
 		crtc_state->pbn = intel_dp_mst_calc_pbn(adjusted_mode->crtc_clock,
 							link_bpp_x16,
 							remote_bw_overhead);
@@ -548,9 +541,11 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	bool dsc_needed;
 	int ret = 0;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	if (pipe_config->fec_enable &&
 	    !intel_dp_supports_fec(intel_dp, connector, pipe_config))
 		return -EINVAL;
+#endif
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
@@ -671,6 +666,7 @@ intel_dp_mst_transcoder_mask(struct intel_atomic_state *state,
 	return transcoders;
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(6, 8, 0)
 static u8 get_pipes_downstream_of_mst_port(struct intel_atomic_state *state,
 					   struct drm_dp_mst_topology_mgr *mst_mgr,
 					   struct drm_dp_mst_port *parent_port)
@@ -794,6 +790,7 @@ int intel_dp_mst_atomic_check_link(struct intel_atomic_state *state,
 
 	return 0;
 }
+#endif
 
 static int intel_dp_mst_compute_config_late(struct intel_encoder *encoder,
 					    struct intel_crtc_state *crtc_state,

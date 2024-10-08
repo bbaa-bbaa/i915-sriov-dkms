@@ -645,7 +645,9 @@ struct intel_digital_connector_state {
 
 	enum hdmi_force_audio force_audio;
 	int broadcast_rgb;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	struct drm_property_blob *border;
+#endif
 };
 
 #define to_intel_digital_connector_state(x) container_of(x, struct intel_digital_connector_state, base)

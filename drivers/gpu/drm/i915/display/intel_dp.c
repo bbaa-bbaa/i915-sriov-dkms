@@ -127,10 +127,21 @@ bool intel_dp_is_edp(struct intel_dp *intel_dp)
 
 static void intel_dp_unset_edid(struct intel_dp *intel_dp);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+bool intel_dp_is_uhbr_rate(int rate)
+{
+	return rate >= 1000000;
+}
+#endif
+
 /* Is link rate UHBR and thus 128b/132b? */
 bool intel_dp_is_uhbr(const struct intel_crtc_state *crtc_state)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+	return intel_dp_is_uhbr_rate(crtc_state->port_clock);
+#else
 	return drm_dp_is_uhbr_rate(crtc_state->port_clock);
+#endif
 }
 
 /**
@@ -142,7 +153,11 @@ bool intel_dp_is_uhbr(const struct intel_crtc_state *crtc_state)
  */
 int intel_dp_link_symbol_size(int rate)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+	return intel_dp_is_uhbr_rate(rate) ? 32 : 10;
+#else
 	return drm_dp_is_uhbr_rate(rate) ? 32 : 10;
+#endif
 }
 
 /**
@@ -411,8 +426,31 @@ int intel_dp_effective_data_rate(int pixel_clock, int bpp_x16,
 int
 intel_dp_max_data_rate(int max_link_rate, int max_lanes)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+	if (max_link_rate >= 1000000) {
+		/*
+		 * UHBR rates always use 128b/132b channel encoding, and have
+		 * 97.71% data bandwidth efficiency. Consider max_link_rate the
+		 * link bit rate in units of 10000 bps.
+		 */
+		int max_link_rate_kbps = max_link_rate * 10;
+		max_link_rate_kbps = DIV_ROUND_DOWN_ULL(mul_u32_u32(max_link_rate_kbps, 9671), 10000);
+		max_link_rate = max_link_rate_kbps / 8;
+	}
+
+	/*
+	 * Lower than UHBR rates always use 8b/10b channel encoding, and have
+	 * 80% data bandwidth efficiency for SST non-FEC. However, this turns
+	 * out to be a nop by coincidence, and can be skipped:
+	 *
+	 *	int max_link_rate_kbps = max_link_rate * 10;
+	 *	max_link_rate_kbps = DIV_ROUND_DOWN_ULL(max_link_rate_kbps * 8, 10);
+	 *	max_link_rate = max_link_rate_kbps / 8;
+	 */
+	return max_link_rate * max_lanes;
+#else
 	int ch_coding_efficiency =
-		drm_dp_bw_channel_coding_efficiency(drm_dp_is_uhbr_rate(max_link_rate));
+		drm_dp_bw_channel_coding_efficiency(intel_dp_is_uhbr_rate(max_link_rate));
 	int max_link_rate_kbps = max_link_rate * 10;
 
 	/*
@@ -432,6 +470,7 @@ intel_dp_max_data_rate(int max_link_rate, int max_lanes)
 	return DIV_ROUND_DOWN_ULL(mul_u32_u32(max_link_rate_kbps * max_lanes,
 					      ch_coding_efficiency),
 				  1000000 * 8);
+#endif
 }
 
 bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp)
@@ -1970,6 +2009,28 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 			      int pipe_bpp,
 			      int timeslots)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+	u16 compressed_bpp;
+	int ret;
+
+	/* Compressed BPP should be less than the Input DSC bpp */
+	dsc_max_bpp = min(dsc_max_bpp, pipe_bpp - 1);
+
+	for (compressed_bpp = dsc_max_bpp;
+	     compressed_bpp >= dsc_min_bpp;
+	     compressed_bpp--) {
+		ret = dsc_compute_link_config(intel_dp,
+					      pipe_config,
+					      limits,
+					      compressed_bpp,
+					      timeslots);
+		if (ret == 0) {
+			pipe_config->dsc.compressed_bpp_x16 =
+				to_bpp_x16(compressed_bpp);
+			return 0;
+		}
+	}
+#else
 	u8 bppx16_incr = drm_dp_dsc_sink_bpp_incr(connector->dp.dsc_dpcd);
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u16 compressed_bppx16;
@@ -2005,6 +2066,7 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 			return 0;
 		}
 	}
+#endif
 	return -EINVAL;
 }
 
@@ -2220,11 +2282,14 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	const struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;
 	int ret;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,8,0)
+	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
+		intel_dp_supports_fec(intel_dp, connector, pipe_config);
+#else
 	pipe_config->fec_enable = pipe_config->fec_enable ||
 		(!intel_dp_is_edp(intel_dp) &&
 		 intel_dp_supports_fec(intel_dp, connector, pipe_config));
-
+#endif
 	if (!intel_dp_supports_dsc(connector, pipe_config))
 		return -EINVAL;
 
@@ -2411,8 +2476,10 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	const struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
+#endif
 	const struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -2421,9 +2488,11 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	bool dsc_needed;
 	int ret = 0;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	if (pipe_config->fec_enable &&
 	    !intel_dp_supports_fec(intel_dp, connector, pipe_config))
 		return -EINVAL;
+#endif
 
 	if (intel_dp_need_bigjoiner(intel_dp, adjusted_mode->crtc_hdisplay,
 				    adjusted_mode->crtc_clock))
@@ -2867,8 +2936,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
 			struct drm_connector_state *conn_state)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	const struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
+#endif
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -2916,12 +2987,14 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			return ret;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	if (intel_conn_state->border) {
 		ret = intel_connector_apply_border(pipe_config,
 					intel_conn_state->border->data);
 		if (ret)
 			return ret;
 	}
+#endif
 
 	pipe_config->limited_color_range =
 		intel_dp_limited_color_range(pipe_config, conn_state);
@@ -3072,6 +3145,7 @@ intel_dp_sink_set_dsc_decompression(struct intel_connector *connector,
 			    str_enable_disable(enable));
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 static void
 intel_dp_sink_set_dsc_passthrough(const struct intel_connector *connector,
 				  bool enable)
@@ -3089,6 +3163,7 @@ intel_dp_sink_set_dsc_passthrough(const struct intel_connector *connector,
 			    "Failed to %s sink compression passthrough state\n",
 			    str_enable_disable(enable));
 }
+#endif
 
 static int intel_dp_dsc_aux_ref_count(struct intel_atomic_state *state,
 				      const struct intel_connector *connector,
@@ -3179,7 +3254,9 @@ void intel_dp_sink_enable_decompression(struct intel_atomic_state *state,
 	if (!intel_dp_dsc_aux_get_ref(state, connector))
 		return;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 	intel_dp_sink_set_dsc_passthrough(connector, true);
+#endif
 	intel_dp_sink_set_dsc_decompression(connector, true);
 }
 
@@ -3211,7 +3288,9 @@ void intel_dp_sink_disable_decompression(struct intel_atomic_state *state,
 		return;
 
 	intel_dp_sink_set_dsc_decompression(connector, false);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 	intel_dp_sink_set_dsc_passthrough(connector, false);
+#endif
 }
 
 static void
@@ -6247,8 +6326,9 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 
 	if (HAS_VRR(dev_priv))
 		drm_connector_attach_vrr_capable_property(connector);
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	intel_attach_border_property(connector);
+#endif
 }
 
 static void

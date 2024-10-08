@@ -21,8 +21,9 @@
 void intel_link_bw_init_limits(struct drm_i915_private *i915, struct intel_link_bw_limits *limits)
 {
 	enum pipe pipe;
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	limits->force_fec_pipes = 0;
+#endif
 	limits->bpp_limit_reached_pipes = 0;
 	for_each_pipe(i915, pipe)
 		limits->max_bpp_x16[pipe] = INT_MAX;
@@ -145,9 +146,11 @@ static int check_all_link_config(struct intel_atomic_state *state,
 	/* TODO: Check additional shared display link configurations like MST */
 	int ret;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	ret = intel_dp_mst_atomic_check_link(state, limits);
 	if (ret)
 		return ret;
+#endif
 
 	ret = intel_fdi_atomic_check_link(state, limits);
 	if (ret)
@@ -164,11 +167,13 @@ assert_link_limit_change_valid(struct drm_i915_private *i915,
 	bool bpps_changed = false;
 	enum pipe pipe;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	/* FEC can't be forced off after it was forced on. */
 	if (drm_WARN_ON(&i915->drm,
 			(old_limits->force_fec_pipes & new_limits->force_fec_pipes) !=
 			old_limits->force_fec_pipes))
 		return false;
+#endif
 
 	for_each_pipe(i915, pipe) {
 		/* The bpp limit can only decrease. */
@@ -181,14 +186,18 @@ assert_link_limit_change_valid(struct drm_i915_private *i915,
 		    old_limits->max_bpp_x16[pipe])
 			bpps_changed = true;
 	}
-
 	/* At least one limit must change. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,8,0)
+	if (drm_WARN_ON(&i915->drm,
+			!bpps_changed))
+		return false;
+#else
 	if (drm_WARN_ON(&i915->drm,
 			!bpps_changed &&
 			new_limits->force_fec_pipes ==
 			old_limits->force_fec_pipes))
 		return false;
-
+#endif
 	return true;
 }
 

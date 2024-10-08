@@ -2096,7 +2096,12 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 	status = connector_status_unknown;
 	if (drm_edid) {
 		/* DDC bus is shared, match EDID to connector type */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
+		const struct edid *edid = drm_edid_raw(drm_edid);
+		if (edid && edid->input & DRM_EDID_INPUT_DIGITAL)
+#else
 		if (drm_edid_is_digital(drm_edid))
+#endif
 			status = connector_status_connected;
 		else
 			status = connector_status_disconnected;
@@ -2110,7 +2115,12 @@ static bool
 intel_sdvo_connector_matches_edid(struct intel_sdvo_connector *sdvo,
 				  const struct drm_edid *drm_edid)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
+	const struct edid *edid = drm_edid_raw(drm_edid);
+	bool monitor_is_digital = !!(edid->input & DRM_EDID_INPUT_DIGITAL);
+#else
 	bool monitor_is_digital = drm_edid_is_digital(drm_edid);
+#endif
 	bool connector_is_digital = !!IS_DIGITAL(sdvo);
 
 	DRM_DEBUG_KMS("connector_is_digital? %d, monitor_is_digital? %d\n",

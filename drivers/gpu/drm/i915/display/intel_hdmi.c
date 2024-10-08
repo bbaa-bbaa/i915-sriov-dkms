@@ -2289,8 +2289,10 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config,
 			      struct drm_connector_state *conn_state)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	const struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
+#endif
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct drm_connector *connector = conn_state->connector;
@@ -2336,12 +2338,14 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 			return ret;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	if (intel_conn_state->border) {
 		ret = intel_connector_apply_border(pipe_config,
 					intel_conn_state->border->data);
 		if (ret)
 			return ret;
 	}
+#endif
 
 	pipe_config->limited_color_range =
 		intel_hdmi_limited_color_range(pipe_config, conn_state);
@@ -2489,8 +2493,14 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 	drm_edid_connector_update(connector, drm_edid);
 
 	to_intel_connector(connector)->detect_edid = drm_edid;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
+	/* FIXME: Get rid of drm_edid_raw() */
+	const struct edid *edid;
+	edid = drm_edid_raw(drm_edid);
+	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
+#else
 	if (drm_edid_is_digital(drm_edid)) {
+#endif
 		intel_hdmi_dp_dual_mode_detect(connector);
 
 		connected = true;
@@ -2634,7 +2644,9 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	if (!HAS_GMCH(dev_priv))
 		drm_connector_attach_max_bpc_property(connector, 8, 12);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	intel_attach_border_property(connector);
+#endif
 }
 
 /*

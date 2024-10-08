@@ -25,6 +25,7 @@
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
@@ -354,6 +355,7 @@ intel_attach_scaling_mode_property(struct drm_connector *connector)
 	connector->state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 void
 intel_attach_border_property(struct drm_connector *connector)
 {
@@ -373,3 +375,4 @@ intel_attach_border_property(struct drm_connector *connector)
 
 	drm_object_attach_property(&connector->base, prop, 0);
 }
+#endif

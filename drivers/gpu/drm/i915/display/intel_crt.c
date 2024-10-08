@@ -27,6 +27,7 @@
 #include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
@@ -669,12 +670,20 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 	drm_edid = intel_crt_get_edid(connector, connector->ddc);
 
 	if (drm_edid) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
+		const struct edid *edid = drm_edid_raw(drm_edid);
+		bool is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
+#endif
 		/*
 		 * This may be a DVI-I connector with a shared DDC
 		 * link between analog and digital outputs, so we
 		 * have to check the EDID input spec of the attached device.
 		 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
+		if (is_digital) {
+#else
 		if (drm_edid_is_digital(drm_edid)) {
+#endif
 			drm_dbg_kms(&dev_priv->drm,
 				    "CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
 		} else {

@@ -466,7 +466,9 @@ struct intel_display {
 	struct {
 		struct drm_property *broadcast_rgb;
 		struct drm_property *force_audio;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 		struct drm_property *border;
+#endif
 	} properties;
 
 	struct {

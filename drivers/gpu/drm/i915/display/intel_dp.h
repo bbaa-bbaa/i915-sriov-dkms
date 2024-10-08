@@ -7,6 +7,7 @@
 #define __INTEL_DP_H__
 
 #include <linux/types.h>
+#include <linux/version.h>
 
 enum intel_output_format;
 enum pipe;
@@ -80,6 +81,9 @@ void intel_dp_audio_compute_config(struct intel_encoder *encoder,
 				   struct drm_connector_state *conn_state);
 bool intel_dp_has_hdmi_sink(struct intel_dp *intel_dp);
 bool intel_dp_is_edp(struct intel_dp *intel_dp);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 8, 0)
+bool intel_dp_is_uhbr_rate(int rate);
+#endif
 bool intel_dp_is_uhbr(const struct intel_crtc_state *crtc_state);
 int intel_dp_link_symbol_size(int rate);
 int intel_dp_link_symbol_clock(int rate);
@@ -147,15 +151,14 @@ static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
 	return ~((1 << lane_count) - 1) & 0xf;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 bool intel_dp_supports_fec(struct intel_dp *intel_dp,
 			   const struct intel_connector *connector,
 			   const struct intel_crtc_state *pipe_config);
+#endif
 u32 intel_dp_mode_to_fec_clock(u32 mode_clock);
 int intel_dp_bw_fec_overhead(bool fec_enabled);
 
-bool intel_dp_supports_fec(struct intel_dp *intel_dp,
-			   const struct intel_connector *connector,
-			   const struct intel_crtc_state *pipe_config);
 
 u32 intel_dp_dsc_nearest_valid_bpp(struct drm_i915_private *i915, u32 bpp, u32 pipe_bpp);
 

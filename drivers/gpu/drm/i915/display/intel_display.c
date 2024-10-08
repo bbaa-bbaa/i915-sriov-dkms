@@ -4689,8 +4689,9 @@ intel_modeset_pipe_config(struct intel_atomic_state *state,
 	ret = compute_baseline_pipe_bpp(state, crtc);
 	if (ret)
 		return ret;
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	crtc_state->fec_enable = limits->force_fec_pipes & BIT(crtc->pipe);
+#endif
 	crtc_state->max_link_bpp_x16 = limits->max_bpp_x16[crtc->pipe];
 
 	if (crtc_state->pipe_bpp > to_bpp_int(crtc_state->max_link_bpp_x16)) {

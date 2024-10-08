@@ -7,6 +7,7 @@
 #define __INTEL_LINK_BW_H__
 
 #include <linux/types.h>
+#include <linux/version.h>
 
 #include "intel_display_limits.h"
 
@@ -16,7 +17,9 @@ struct intel_atomic_state;
 struct intel_crtc_state;
 
 struct intel_link_bw_limits {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
 	u8 force_fec_pipes;
+#endif
 	u8 bpp_limit_reached_pipes;
 	/* in 1/16 bpp units */
 	int max_bpp_x16[I915_MAX_PIPES];
